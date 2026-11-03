@@ -6,19 +6,19 @@
 #include <unordered_map>
 class OrderBook{
     private:
-        std::map<double,std::list<Order>,std::greater<double>>buyLevels;//key=double,value=std::list<Order>,comparator=std::greater<double>
-        std::map<double,std::list<Order>>sellLevels;//std::list<Order> means a list of Order 
-        std::unordered_map<uint64_t,std::list<Order>::iterator> orderIndex;
+        std::map<uint64_t,std::list<Order>,std::greater<uint64_t>>buyLevels;//key=double(price),value=std::list<Order>(because multiple order can exist at same time),comparator=std::greater<double>
+        std::map<uint64_t,std::list<Order>>sellLevels;//std::list<Order> means a list of Order 
+        std::unordered_map<uint64_t,std::list<Order>::iterator> orderIndex;//hashmap here to find order in o(1) time
     public:
         void addOrder(const Order& order){
-            if(order.side==Side::BUY){
-                Order incoming=order;
+            if(order.side==Side::BUY){//in buy incoming price is the max price a buyer is willing to pay
+                Order incoming=order;//creating a copy here
                 while(incoming.quantity>0 && !sellLevels.empty() && sellLevels.begin()->first <= incoming.price){
                     auto bestSellIt = sellLevels.begin();
                     std::list<Order>& ordersAtBestPrice = bestSellIt->second;
                     Order& restingOrder = ordersAtBestPrice.front(); 
 
-                    double matchQty=std::min(incoming.quantity,restingOrder.quantity);
+                    uint64_t matchQty=std::min(incoming.quantity,restingOrder.quantity);
 
                     incoming.quantity-=matchQty;
                     restingOrder.quantity-=matchQty;
@@ -45,7 +45,7 @@ class OrderBook{
                     std::list<Order>& ordersAtBestPrice =bestBuyIt->second;
                     Order& restingOrder=ordersAtBestPrice.front();
 
-                    double matchQty=std::min(restingOrder.quantity,incoming.quantity);
+                    uint64_t matchQty=std::min(restingOrder.quantity,incoming.quantity);
                     
                     incoming.quantity-=matchQty;
                     restingOrder.quantity-=matchQty;
@@ -72,7 +72,7 @@ class OrderBook{
             }
             std::list<Order>::iterator orderIt=found->second;
             Side side=orderIt->side;
-            double price =orderIt->price;
+            uint64_t price =orderIt->price;
 
             if(side==Side::BUY){
                 buyLevels[price].erase(orderIt);
@@ -97,19 +97,19 @@ class OrderBook{
         size_t sellLevelCount() const{
             return sellLevels.size();
         }
-        double getBuyQuantityAtPrice(double price) const {
+        double getBuyQuantityAtPrice(uint64_t price) const {
             auto it = buyLevels.find(price);
             if (it == buyLevels.end()) {
                 return 0.0;
             }
 
             double total = 0.0;
-            for (const Order& o : it->second) {
+            for (const Order& o : it->second)/*iterates through all orders at that price and adds their quantites*/ {
                 total += o.quantity;
             }
             return total;
         }
-        double getSellQuantityAtPrice(double price) const {
+        double getSellQuantityAtPrice(uint64_t price) const {
             auto it = sellLevels.find(price);
             if (it == sellLevels.end()) {
                 return 0.0;

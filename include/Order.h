@@ -7,7 +7,8 @@ enum class Side{/*enum class is here because it basically predefined b=variables
 struct Order{
     uint64_t timestamp; /*unint64_t means u for unsigned int for integer 64 means 64 bit ,its better to use than normal int as normal int is only 32 bit*/
     uint64_t orderId;
-    double price; /*we have to change this later due to rounding off*/
-    double quantity;
+    uint64_t price; /*we have to change this later due to rounding off*/
+    uint64_t quantity;
     Side side;
 };
+ 
