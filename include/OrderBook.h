@@ -12,7 +12,7 @@
 #include <cassert>
 #include "Trade.h"//finally added this to record the trades
 #include <vector>
-#include <optional>
+#include <optional>//so to hold nothing 
 
 class OrderBook{
     private:
@@ -32,6 +32,15 @@ class OrderBook{
             }
             if(nextOrderId==0){
                 throw std::overflow_error("Order ID space exhausted");
+            }
+            if(order.type==OrderType::LIMIT && order.price==0){
+                throw std::invalid_argument("Limit order price cannot be zero");
+            }
+            if(order.type==OrderType::MARKET){
+                order.price=(order.side==Side::BUY)?UINT64_MAX:0;
+                if(order.timeInForce==TimeInForce::GTC){
+                    order.timeInForce=TimeInForce::IOC;
+                }
             }
             order.orderId=nextOrderId++;
             const uint64_t assignedOrderId=order.orderId;
@@ -67,7 +76,7 @@ class OrderBook{
                     }
                 }
 
-                if(incoming.quantity>0){
+                if(incoming.quantity>0 && incoming.timeInForce==TimeInForce::GTC){
                     buyLevels[incoming.price].push_back(incoming);
                     orderIndex[incoming.orderId]=std::prev(buyLevels[incoming.price].end());
                 }
@@ -86,8 +95,8 @@ class OrderBook{
                     trade.timestamp = incoming.timestamp;
                     trade.price = restingOrder.price;
                     trade.quantity = matchQty;
-                    trade.buyOrderId = incoming.orderId;
-                    trade.sellOrderId = restingOrder.orderId;
+                    trade.buyOrderId = restingOrder.orderId;
+                    trade.sellOrderId = incoming.orderId;
                     trade.aggressorSide = Side::SELL;
                     trades.push_back(trade);
                     
@@ -103,7 +112,7 @@ class OrderBook{
                         }
                     }
                 }
-                if(incoming.quantity>0){
+                if(incoming.quantity>0 && incoming.timeInForce==TimeInForce::GTC){
                     sellLevels[incoming.price].push_back(incoming);
                     orderIndex[incoming.orderId]=std::prev(sellLevels[incoming.price].end());
                 }
