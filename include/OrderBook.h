@@ -10,6 +10,9 @@
 #include <cstdint>
 #include <stdexcept>
 #include <cassert>
+#include "Trade.h"//finally added this to record the trades
+#include <vector>
+#include <optional>
 
 class OrderBook{
     private:
@@ -17,6 +20,8 @@ class OrderBook{
         std::map<uint64_t,std::list<Order>>sellLevels;//std::list<Order> means a list of Order 
         std::unordered_map<uint64_t,std::list<Order>::iterator> orderIndex;//hashmap here to find order in o(1) time
         uint64_t nextOrderId=1;//this is for unique id
+        std::vector<Trade> trades;
+        uint64_t nextTradeId=1;
     public:
         uint64_t addOrder(Order order){
             if(order.quantity==0){
@@ -38,6 +43,16 @@ class OrderBook{
                     Order& restingOrder = ordersAtBestPrice.front(); 
 
                     uint64_t matchQty=std::min(incoming.quantity,restingOrder.quantity);
+
+                    Trade trade{};
+                    trade.tradeId = nextTradeId++;
+                    trade.timestamp = incoming.timestamp;
+                    trade.price = restingOrder.price;
+                    trade.quantity = matchQty;
+                    trade.buyOrderId = incoming.orderId;
+                    trade.sellOrderId = restingOrder.orderId;
+                    trade.aggressorSide = Side::BUY;
+                    trades.push_back(trade);
 
                     incoming.quantity-=matchQty;
                     restingOrder.quantity-=matchQty;
@@ -65,6 +80,16 @@ class OrderBook{
                     Order& restingOrder=ordersAtBestPrice.front();
 
                     uint64_t matchQty=std::min(restingOrder.quantity,incoming.quantity);
+
+                    Trade trade{};
+                    trade.tradeId = nextTradeId++;
+                    trade.timestamp = incoming.timestamp;
+                    trade.price = restingOrder.price;
+                    trade.quantity = matchQty;
+                    trade.buyOrderId = incoming.orderId;
+                    trade.sellOrderId = restingOrder.orderId;
+                    trade.aggressorSide = Side::SELL;
+                    trades.push_back(trade);
                     
                     incoming.quantity-=matchQty;
                     restingOrder.quantity-=matchQty;
@@ -148,5 +173,25 @@ class OrderBook{
                 total += o.quantity;
             }
             return total;
+        }
+        //read-only getters
+        const std::vector<Trade>& getTrades() const{//returing a reference here so no copy is made ,const make sure its read only and not modifiable
+            return trades;
+        }
+        size_t getTradeCount() const{
+            return trades.size();
+        }
+        uint64_t getTotalTradedVolume() const{
+            uint64_t total=0;
+            for(const Trade& t: trades){
+                total+=t.quantity;
+            }
+            return total;
+        }
+        std::optional<uint64_t> getLastTradePrice() const{//std optional can either hold a value or nothing ,if i did return 0, it would mean that a trade happened at price 0
+            if(trades.empty()){
+                return std::nullopt;
+            }
+            return trades.back().price;
         }
 };
